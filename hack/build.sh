@@ -80,7 +80,7 @@ if [[ "${GOOS}" = "windows" ]]; then
   OUTPUT="${OUTPUT}.exe"
 fi
 
-go build \
+go build -mod=vendor \
     -o ${OUTPUT} \
     -gcflags "${GCFLAGS}" \
     -installsuffix "static" \

@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM --platform=$TARGETPLATFORM golang:1.24-bookworm
+#FROM --platform=$TARGETPLATFORM golang:1.24-bookworm
+FROM --platform=$TARGETPLATFORM lcr.loongnix.cn/library/golang:1.23-buster
 
 ARG GOPROXY
 
@@ -21,12 +22,18 @@ ENV GO111MODULE=on
 ENV GOPROXY=${GOPROXY}
 
 # kubebuilder test bundle is separated from kubebuilder. Need to setup it for CI test.
-RUN curl -sSLo envtest-bins.tar.gz https://go.kubebuilder.io/test-tools/1.22.1/linux/$(go env GOARCH) && \
+#RUN curl -sSLo envtest-bins.tar.gz https://go.kubebuilder.io/test-tools/1.22.1/linux/$(go env GOARCH) && \
+#    mkdir /usr/local/kubebuilder && \
+#    tar -C /usr/local/kubebuilder --strip-components=1 -zvxf envtest-bins.tar.gz
+RUN wget https://cloud.loongnix.cn/releases/loongarch64/kubernetes/kubernetes/v1.21.1/kubernetes-server-linux-loong64.tar.gz && \
     mkdir /usr/local/kubebuilder && \
-    tar -C /usr/local/kubebuilder --strip-components=1 -zvxf envtest-bins.tar.gz
+    tar -C /usr/local/kubebuilder --strip-components=2 -zvxf kubernetes-server-linux-loong64.tar.gz
 
-RUN wget --quiet https://github.com/kubernetes-sigs/kubebuilder/releases/download/v3.2.0/kubebuilder_linux_$(go env GOARCH) && \
-    mv kubebuilder_linux_$(go env GOARCH) /usr/local/kubebuilder/bin/kubebuilder && \
+#RUN wget --quiet https://github.com/kubernetes-sigs/kubebuilder/releases/download/v3.2.0/kubebuilder_linux_$(go env GOARCH) && \
+#    mv kubebuilder_linux_$(go env GOARCH) /usr/local/kubebuilder/bin/kubebuilder && \
+#    chmod +x /usr/local/kubebuilder/bin/kubebuilder
+RUN wget https://cloud.loongnix.cn/releases/loongarch64/kubernetes-sigs/kubebuilder/v3.0.0/kubebuilder && \
+    mv kubebuilder /usr/local/kubebuilder/bin/kubebuilder && \
     chmod +x /usr/local/kubebuilder/bin/kubebuilder
 
 # get controller-tools
@@ -38,7 +45,8 @@ RUN go install golang.org/x/tools/cmd/goimports@v0.33.0
 
 # get protoc compiler and golang plugin
 WORKDIR /root
-RUN apt-get update && apt-get install -y unzip
+#RUN apt-get update && apt-get install -y unzip
+RUN export https_proxy=http://10.130.0.14:7890 && apt-get update && apt-get install -y unzip curl
 # protobuf uses bazel cpunames except following
 #   if cpu == "systemz":
 #   cpu = "s390_64"
@@ -57,11 +65,14 @@ RUN ARCH=$(go env GOARCH) && \
         ARCH="ppcle_64"; \
     elif [ "$ARCH" = "ppc64" ] ; then \
         ARCH="ppcle_64"; \
+    elif [ "$ARCH" = "loongarch64" ] ; then \
+        ARCH="loong64"; \
     else \
         ARCH=$(uname -m); \
     fi && echo "ARCH=$ARCH" && \
-    wget --quiet https://github.com/protocolbuffers/protobuf/releases/download/v25.2/protoc-25.2-linux-$ARCH.zip && \
-    unzip protoc-25.2-linux-$ARCH.zip; \
+    #wget --quiet https://github.com/protocolbuffers/protobuf/releases/download/v25.2/protoc-25.2-linux-$ARCH.zip && \
+    wget --quiet http://10.130.0.141/releases/loongarch64/protocolbuffers%2Fprotoc/21.5/protoc-21.5-linux-loongarch_64.zip && \
+    unzip protoc-21.5-linux-loongarch_64.zip ; \
     rm *.zip && \
     mv bin/protoc /usr/bin/protoc && \
     mv include/google /usr/include && \
@@ -87,9 +98,12 @@ RUN ARCH=$(go env GOARCH) && \
         ARCH="i386"; \
     elif [ "$ARCH" = "ppc64le" ] ; then \
         ARCH="ppc64"; \
+    elif [ "$ARCH" = "loongarch64" ] ; then \
+        ARCH="loong64"; \
     fi && \
-    wget --quiet "https://github.com/goreleaser/goreleaser/releases/download/v1.26.2/goreleaser_Linux_$ARCH.tar.gz" && \
-    tar xvf goreleaser_Linux_$ARCH.tar.gz; \
+    #wget --quiet "https://github.com/goreleaser/goreleaser/releases/download/v1.26.2/goreleaser_Linux_$ARCH.tar.gz" && \
+    wget --quiet "http://10.130.0.141/releases/loongarch64/goreleaser%2F1.26.2/goreleaser_Linux_loongarch64.tar.gz" && \
+    tar xvf goreleaser_Linux_loongarch64.tar.gz; \
     mv goreleaser /usr/bin/goreleaser && \
     chmod +x /usr/bin/goreleaser
 
@@ -97,9 +111,11 @@ RUN ARCH=$(go env GOARCH) && \
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.1.1
 
 # install kubectl
-RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/$(go env GOARCH)/kubectl
-RUN chmod +x ./kubectl
-RUN mv ./kubectl /usr/local/bin
+#RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/$(go env GOARCH)/kubectl
+#RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/$(go env GOARCH)/kubectl
+#RUN chmod +x ./kubectl
+RUN chmod +x /usr/local/kubebuilder/bin/kubectl
+RUN mv /usr/local/kubebuilder/bin/kubectl /usr/local/bin
 
 # Fix the "dubious ownership" issue from git when running goreleaser.sh
 RUN echo "[safe] \n\t directory = *" > /.gitconfig

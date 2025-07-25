@@ -71,7 +71,7 @@ HUGO_IMAGE := ghcr.io/gohugoio/hugo
 # if the 'local' rule is being run, detect the ARCH from 'go env'
 # if it wasn't specified by the caller.
 local : ARCH ?= $(shell go env GOOS)-$(shell go env GOARCH)
-ARCH ?= linux-amd64
+ARCH ?= linux-loong64
 
 VERSION ?= main
 
@@ -145,7 +145,8 @@ endif
 platform_temp = $(subst -, ,$(ARCH))
 GOOS = $(word 1, $(platform_temp))
 GOARCH = $(word 2, $(platform_temp))
-GOPROXY ?= https://proxy.golang.org
+#GOPROXY ?= https://proxy.golang.org
+GOPROXY ?= https://goproxy.cn,direct
 GOBIN=$$(pwd)/.go/bin
 
 # If you want to build all binaries, see the 'all-build' rule.
@@ -203,6 +204,7 @@ shell: build-dirs build-env
 	@docker run \
 		-e GOFLAGS \
 		-e GOPROXY \
+		-e https_proxy=http://10.130.0.14:7890 \
 		-i $(TTY) \
 		--rm \
 		-u $$(id -u):$$(id -g) \
